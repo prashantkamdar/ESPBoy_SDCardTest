@@ -26,9 +26,6 @@ void ESPboyInit::begin(char *appName) {
      mcp.pinMode(i, INPUT);
      mcp.pullUp(i, HIGH);}
 
-mcp.pinMode(11, OUTPUT); // changed by 7thking
-mcp.digitalWrite(11, HIGH); // changed by 7thking
-
 //sound init and test
   pinMode(SOUNDPIN, OUTPUT);
   playTone(200, 100); 

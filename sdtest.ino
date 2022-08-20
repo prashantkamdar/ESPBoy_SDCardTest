@@ -1,54 +1,71 @@
 #include <SPI.h>
 #include <SD.h>
+//#include "lib/SD/src/SD.h"
 #include "lib/ESPboyInit.h"
 #include "lib/ESPboyInit.cpp"
-#include "lib/ESPboyTerminalGUI.h"
-#include "lib/ESPboyTerminalGUI.cpp"
-
-
-//ESPboyTerminalGUI terminalGUIobj(&myESPboy.tft, &myESPboy.mcp);
 
 File root;
-
-#define sd_cs_pin 11
+ESPboyInit myESPboy;
+#define sd_cs_pin 10
+#define TFTchipSelectPin 8
 String fileNames[19] = {};
 int fileCount = 0;
 
-void setup()
+void tftOnSdOff()
 {
-  
-  //mcp.pinMode(sd_cs_pin, OUTPUT);
-  //digitalWrite(sd_cs_pin, HIGH);
-  //digitalWrite(D7, HIGH);
-  Serial.begin(115200);
-  while (!Serial) {
-    ; // wait for serial port to connect. Needed for native USB port only
-  }
-  ESPboyInit myESPboy;
-  myESPboy.begin("SD updater");
-  //terminalGUIobj.printConsole("ESPboy WebRadio v1.0", TFT_GREEN, 0, 0);
+  delay(100);
+  myESPboy.mcp.digitalWrite(sd_cs_pin, HIGH);
+  delay(100);
+  myESPboy.mcp.digitalWrite(TFTchipSelectPin, LOW);
+  delay(100);
+}
 
+void sdOnTftOff()
+{
+  delay(100);
+  myESPboy.mcp.digitalWrite(sd_cs_pin, LOW);
+  delay(100);
+  myESPboy.mcp.digitalWrite(TFTchipSelectPin, HIGH);  
+  delay(100);
+}
+
+void readSDFilesAndDisplay()
+{
   Serial.print("Initializing SD card...");
+  sdOnTftOff();
 
   if (!SD.begin(sd_cs_pin))
   {
-    Serial.println("initialization failed!");
-    myESPboy.tft.println("not done");
+    tftOnSdOff();
+  Serial.println("init failed");
+    myESPboy.tft.println("init failed");
     return;
   }
-  
-  Serial.println("initialization done.");
-  myESPboy.tft.println("initialization done");
 
+  tftOnSdOff();
+  Serial.print("init done");
+  myESPboy.tft.print("init done");
+
+  sdOnTftOff();
   root = SD.open("/");
-  setFileCounts(root);
+  getFiles(root);
+  tftOnSdOff();
 
+  if(fileCount==0)
+  {
+    return;
+  }
+
+  myESPboy.tft.print(" - ");
+  myESPboy.tft.print(fileCount);
+  myESPboy.tft.print(" files");
   for(int i = 0; i <= fileCount; i++) {
     
     Serial.println(fileNames[i]);
     myESPboy.tft.println(fileNames[i]);
   }
 
+  sdOnTftOff();
   if (SD.exists("Catacombs.bin"))
   {
     Serial.println("Catacombs.bin exists.");
@@ -71,7 +88,21 @@ void setup()
     //ESP.reset();
   }
 
-  Serial.println("done!");
+  Serial.println("done!");  
+}
+
+void setup()
+{  
+  myESPboy.begin("SD updater");
+  myESPboy.mcp.pinMode(sd_cs_pin, OUTPUT);
+  tftOnSdOff();
+  
+  do{
+  delay(500);
+  myESPboy.tft.fillScreen(TFT_BLACK);
+  myESPboy.tft.setCursor(10,10);
+  readSDFilesAndDisplay();
+  }while(fileCount==0);
 }
 
 void loop()
@@ -121,10 +152,9 @@ void progressCallBack(size_t currSize, size_t totalSize) {
       Serial.printf("CALLBACK:  Update process at %d of %d bytes...\n", currSize, totalSize);
 }
 
-void setFileCounts(File dir) {
-  
-  
+void getFiles(File dir) {
   while(true) {
+  delay(100);
     File entry = dir.openNextFile();
     if(!entry) {
       dir.rewindDirectory();
